@@ -63,8 +63,11 @@ async def on_message(message):
             try:
                 # Extract the delay value from the message content
                 await asyncio.sleep(delay_seconds)  # Wait for the specified delay
-            
+                await bot.get_channel(DISPLAY_CHANNEL_ID).send("HẾT THỜI GIAN!")
                 sorted_messages = sorted(tt_messages.items(), key=lambda x: (x[1]['timestamp'] - start_time).total_seconds())
+
+                for source_channel_id in SOURCE_CHANNEL_IDS:
+                    await bot.get_channel(source_channel_id).send("HẾT THỜI GIAN!")
 
                 for source_channel_id, last_message in sorted_messages:
                     timestamp = last_message['timestamp']
@@ -90,20 +93,16 @@ async def on_message(message):
             
 
         # Vuot chuong ngai vat
-        if delay_seconds == 15:
+        elif delay_seconds == 15:
             try:
                 # Extract the delay value from the message content
                 await asyncio.sleep(delay_seconds)  # Wait for the specified delay
+                await bot.get_channel(DISPLAY_CHANNEL_ID).send("HẾT THỜI GIAN!")
+                for source_channel_id in SOURCE_CHANNEL_IDS:
+                    await bot.get_channel(source_channel_id).send("HẾT THỜI GIAN!")
             
-                # for source_channel_id, last_message in vcnv_messages.items():
-                #     channel_name = ' '.join(word.capitalize() for word in last_message['channel_name'].split('-'))
-                #     await bot.get_channel(DISPLAY_CHANNEL_ID).send(
-                #         f"{channel_name}: {last_message['content'].upper()}"
-                #     )
-
                 # Check if there's no message in a specific channel
                 for source_channel_id in SOURCE_CHANNEL_IDS:
-                    
                     if source_channel_id not in vcnv_messages:
                         channel_name = ' '.join(word.capitalize() for word in bot.get_channel(source_channel_id).name.split('-'))
                         await bot.get_channel(DISPLAY_CHANNEL_ID).send(
@@ -118,6 +117,17 @@ async def on_message(message):
                 vcnv_messages.clear()
             except (IndexError, ValueError):
                 pass  # Ignore if there's no delay specified or an invalid delay value
+        
+        
+        else:
+            try:
+                # Extract the delay value from the message content
+                await asyncio.sleep(delay_seconds)  # Wait for the specified delay
+                await bot.get_channel(DISPLAY_CHANNEL_ID).send("HẾT THỜI GIAN!")
+                for source_channel_id in SOURCE_CHANNEL_IDS:
+                    await bot.get_channel(source_channel_id).send("HẾT THỜI GIAN!")
+            except (IndexError, ValueError):
+                pass 
 
 
 
