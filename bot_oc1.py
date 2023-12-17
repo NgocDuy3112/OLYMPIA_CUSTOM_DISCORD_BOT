@@ -211,10 +211,8 @@ async def on_message(message):
             except (IndexError, ValueError):
                 pass
         
-
         else:
             pass
-
 
     elif message.channel.id == TARGET_CHANNEL_ID and message.content.startswith('/alert'):
         CHANNEL_IDS = SOURCE_CHANNEL_IDS + [DISPLAY_CHANNEL_ID]
