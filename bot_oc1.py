@@ -10,12 +10,14 @@ tt_messages = {}  # Dictionary to store the first message from each source chann
 hs_messages = {}
 vd_messages = {}
 chp_messages = {}
+running_process = set()
 
 HOI_SUC_KEY = "HOISUC"
 HAS_PINGED_FIRST = False
 START_STR = "THỜI GIAN TRẢ LỜI BẮT ĐẦU!"
 START_PING_STR = "THỜI GIAN 5 GIÂY GÕ CHUÔNG BẮT ĐẦU!"
 TIME_UP_STR = "HẾT THỜI GIAN!"
+DISPLAY_PAUSED = False
 
 @bot.event
 async def on_ready():
@@ -30,6 +32,7 @@ async def wait_for_no_messages(seconds=5):
 @bot.event
 async def on_message(message):
     global HAS_PINGED_FIRST
+    global DISPLAY_PAUSED
 
     if message.author == bot.user: return
 
@@ -62,15 +65,12 @@ async def on_message(message):
             channel_name = ' '.join(word.capitalize() for word in bot.get_channel(message.channel.id).name.split('-'))
             await bot.get_channel(DISPLAY_CHANNEL_ID).send(f"{channel_name} có tín hiệu trả lời Chướng ngại vật!")
             await bot.get_channel(message.channel.id).send(f"Bạn đã bấm chuông giành quyền trả lời Chướng ngại vật! Bạn KHÔNG ĐƯỢC PHÉP tiếp tục tham gia vòng thi này!")
-            bot.remove_listener(on_message)
-            await wait_for_no_messages()
+            DISPLAY_PAUSED = True
         
-        if hs_messages[message.channel.id]['content'] == HOI_SUC_KEY:
+        if hs_messages[message.channel.id]['content'].upper() == HOI_SUC_KEY.upper():
             channel_name = ' '.join(word.capitalize() for word in bot.get_channel(message.channel.id).name.split('-'))
             await bot.get_channel(message.channel.id).send(f"Bạn đã giải đúng mật mã vòng Hồi Sức! Mời bạn dừng nhập đáp án!")
             await bot.get_channel(DISPLAY_CHANNEL_ID).send(f"{channel_name} đã giải đúng mật mã vòng Hồi Sức!")
-            bot.remove_listener(on_message)
-            await wait_for_no_messages(60)
         
         if not HAS_PINGED_FIRST and vd_messages[message.channel.id]['content'] == "/.":
             HAS_PINGED_FIRST = True
@@ -84,7 +84,9 @@ async def on_message(message):
             HAS_PINGED_FIRST = True
             channel_name = ' '.join(word.capitalize() for word in bot.get_channel(message.channel.id).name.split('-'))
             await bot.get_channel(DISPLAY_CHANNEL_ID).send(f"{channel_name} giành được quyền trả lời câu hỏi phụ này!")
-            await bot.get_channel(message.channel.id).send(f"Bạn đã giành được quyền trả lời câu hỏi phụ này! Bạn KHÔNG ĐƯỢC PHÉP tiếp tục tham gia vòng thi này!")
+            await bot.get_channel(message.channel.id).send(
+                f"Bạn đã giành được quyền trả lời câu hỏi phụ này! Bạn KHÔNG ĐƯỢC PHÉP tiếp tục tham gia vòng thi này!"
+            )
             bot.remove_listener(on_message)
             await wait_for_no_messages(15)
             
@@ -148,22 +150,24 @@ async def on_message(message):
                 await bot.get_channel(DISPLAY_CHANNEL_ID).send(TIME_UP_STR)
                 for source_channel_id in SOURCE_CHANNEL_IDS:
                     await bot.get_channel(source_channel_id).send(TIME_UP_STR)
-            
+
+                if not DISPLAY_PAUSED:
                 # Check if there's no message in a specific channel
-                for source_channel_id in SOURCE_CHANNEL_IDS:
-                    if source_channel_id not in vcnv_messages:
-                        channel_name = ' '.join(word.capitalize() for word in bot.get_channel(source_channel_id).name.split('-'))
-                        await bot.get_channel(DISPLAY_CHANNEL_ID).send(
-                            f"{channel_name}: Không có đáp án"
-                        )
-                    else:
-                        message = vcnv_messages[source_channel_id]
-                        channel_name = ' '.join(word.capitalize() for word in message['channel_name'].split('-'))
-                        await bot.get_channel(DISPLAY_CHANNEL_ID).send(
-                            f"{channel_name}: {message['content'].upper()}"
-                        )
-                
-                vcnv_messages.clear()
+                    for source_channel_id in SOURCE_CHANNEL_IDS:
+                        if source_channel_id not in vcnv_messages:
+                            channel_name = ' '.join(word.capitalize() for word in bot.get_channel(source_channel_id).name.split('-'))
+                            await bot.get_channel(DISPLAY_CHANNEL_ID).send(f"{channel_name}:")
+                        else:
+                            message = vcnv_messages[source_channel_id]
+                            channel_name = ' '.join(word.capitalize() for word in message['channel_name'].split('-'))
+                            if message['content'].upper() == "/CNV":
+                                await bot.get_channel(DISPLAY_CHANNEL_ID).send(f"{channel_name}:")
+                            else:
+                                await bot.get_channel(DISPLAY_CHANNEL_ID).send(
+                                    f"{channel_name}: {message['content'].upper()}"
+                                )
+                    
+                    vcnv_messages.clear()
                 
             except (IndexError, ValueError):
                 pass  # Ignore if there's no delay specified or an invalid delay value
@@ -189,6 +193,14 @@ async def on_message(message):
                         await bot.get_channel(DISPLAY_CHANNEL_ID).send(
                             f"{channel_name} không giải được mật mã vòng Hồi Sức"
                         )
+                    else:
+                        message = hs_messages[source_channel_id]
+                        channel_name = ' '.join(word.capitalize() for word in message['channel_name'].split('-'))
+                        if message['content'].upper() != HOI_SUC_KEY.upper():
+                            await bot.get_channel(DISPLAY_CHANNEL_ID).send(
+                                f"{channel_name} không giải được mật mã vòng Hồi Sức"
+                            )
+
                 hs_messages.clear()
 
             except (IndexError, ValueError):
@@ -218,6 +230,22 @@ async def on_message(message):
         CHANNEL_IDS = SOURCE_CHANNEL_IDS + [DISPLAY_CHANNEL_ID]
         for source_channel_id in CHANNEL_IDS:
             await bot.get_channel(source_channel_id).send(' '.join(message.content.split()[1:]))
+    
+    elif message.channel.id == TARGET_CHANNEL_ID and message.content.startswith('/cont'):
+        DISPLAY_PAUSED = False
+        for source_channel_id in SOURCE_CHANNEL_IDS:
+            if source_channel_id not in vcnv_messages:
+                channel_name = ' '.join(word.capitalize() for word in bot.get_channel(source_channel_id).name.split('-'))
+                await bot.get_channel(DISPLAY_CHANNEL_ID).send(f"{channel_name}:")
+            else:
+                message = vcnv_messages[source_channel_id]
+                channel_name = ' '.join(word.capitalize() for word in message['channel_name'].split('-'))
+                if message['content'].upper() == "/CNV":
+                    await bot.get_channel(DISPLAY_CHANNEL_ID).send(f"{channel_name}:")
+                else:
+                    await bot.get_channel(DISPLAY_CHANNEL_ID).send(
+                        f"{channel_name}: {message['content'].upper()}"
+                    )
         
 
 
