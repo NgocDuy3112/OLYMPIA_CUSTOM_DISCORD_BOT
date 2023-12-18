@@ -12,7 +12,7 @@ vd_messages = {}
 chp_messages = {}
 running_process = set()
 
-HOI_SUC_KEY = "HOISUC"
+HOI_SUC_KEY = os.getenv("HOI_SUC_KEY")
 HAS_PINGED_FIRST = False
 START_STR = "THỜI GIAN TRẢ LỜI BẮT ĐẦU!"
 START_PING_STR = "THỜI GIAN 5 GIÂY GÕ CHUÔNG BẮT ĐẦU!"
@@ -228,8 +228,11 @@ async def on_message(message):
 
     elif message.channel.id == TARGET_CHANNEL_ID and message.content.startswith('/alert'):
         CHANNEL_IDS = SOURCE_CHANNEL_IDS + [DISPLAY_CHANNEL_ID]
-        for source_channel_id in CHANNEL_IDS:
-            await bot.get_channel(source_channel_id).send(' '.join(message.content.split()[1:]))
+        try:
+            for source_channel_id in CHANNEL_IDS:
+                await bot.get_channel(source_channel_id).send(' '.join(message.content.split()[1:]))
+        except (IndexError, ValueError):
+            await bot.get_channel(DISPLAY_CHANNEL_ID).send("Bạn bị thiếu câu thông báo kìa!")
     
     elif message.channel.id == TARGET_CHANNEL_ID and message.content.startswith('/cont'):
         DISPLAY_PAUSED = False
@@ -246,6 +249,19 @@ async def on_message(message):
                     await bot.get_channel(DISPLAY_CHANNEL_ID).send(
                         f"{channel_name}: {message['content'].upper()}"
                     )
+    
+    elif message.channel.id == TARGET_CHANNEL_ID and message.content.startswith('/delete'):
+        if CLEAR_COMMAND_ROLE_ID in [role.id for role in message.author.roles]:
+            try:
+                DELETE_CHANNEL_IDS = SOURCE_CHANNEL_IDS + [TARGET_CHANNEL_ID, DISPLAY_CHANNEL_ID]
+                num_messages_to_clear = int(message.content.split()[1]) + 1
+                for channel_id_to_clear in DELETE_CHANNEL_IDS:
+                    channel_to_clear = bot.get_channel(channel_id_to_clear)
+                    messages_to_clear = [mess async for mess in channel_to_clear.history(limit=num_messages_to_clear)] 
+                    await channel_to_clear.delete_messages(messages_to_clear)
+                await message.channel.send(f"Đã xóa {num_messages_to_clear - 1} tin nhắn ở cả 4 kênh!")
+            except (IndexError, ValueError):
+                await bot.get_channel(DISPLAY_CHANNEL_ID).send("Bạn bị thiếu số lượng tin nhắn cần xóa kìa!")
         
 
 
