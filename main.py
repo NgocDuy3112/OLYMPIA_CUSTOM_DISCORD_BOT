@@ -12,7 +12,7 @@ vd_messages = {}
 chp_messages = {}
 running_process = set()
 
-HOI_SUC_KEY = os.getenv("HOI_SUC_KEY")
+HOI_SUC_KEY = "CAMON"
 HAS_PINGED_FIRST = False
 START_STR = "THỜI GIAN TRẢ LỜI BẮT ĐẦU!"
 START_PING_STR = "THỜI GIAN 5 GIÂY GÕ CHUÔNG BẮT ĐẦU!"
@@ -77,8 +77,6 @@ async def on_message(message):
             channel_name = ' '.join(word.capitalize() for word in bot.get_channel(message.channel.id).name.split('-'))
             await bot.get_channel(DISPLAY_CHANNEL_ID).send(f"{channel_name} giành được quyền trả lời câu hỏi Về đích này!")
             await bot.get_channel(message.channel.id).send(f"Bạn đã giành được quyền trả lời câu hỏi Về đích này!")
-            bot.remove_listener(on_message)
-            await wait_for_no_messages(5)
         
         if not HAS_PINGED_FIRST and chp_messages[message.channel.id]['content'] == "/.":
             HAS_PINGED_FIRST = True
@@ -87,8 +85,6 @@ async def on_message(message):
             await bot.get_channel(message.channel.id).send(
                 f"Bạn đã giành được quyền trả lời câu hỏi phụ này! Bạn KHÔNG ĐƯỢC PHÉP tiếp tục tham gia vòng thi này!"
             )
-            bot.remove_listener(on_message)
-            await wait_for_no_messages(15)
             
 
     # Check if the message is in the target channel and starts with '/start'
@@ -96,18 +92,54 @@ async def on_message(message):
         HAS_PINGED_FIRST = False
         start_time = datetime.now().astimezone()
         round = message.content.split()[1]
+
+        # Vuot chuong ngai vat
+        if round == "vcnv":
+            delay_seconds = 15
+            try:
+                # Extract the delay value from the message content
+                for source_channel_id in SOURCE_CHANNEL_IDS:
+                    await bot.get_channel(source_channel_id).send(START_STR)
+
+                await asyncio.sleep(delay_seconds)  # Wait for the specified delay
+
+                
+                for source_channel_id in SOURCE_CHANNEL_IDS:
+                    await bot.get_channel(source_channel_id).send(TIME_UP_STR)
+
+                if not DISPLAY_PAUSED:
+                    await bot.get_channel(DISPLAY_CHANNEL_ID).send("---------------ĐÁP ÁN CỦA CÁC THÍ SINH---------------")
+                # Check if there's no message in a specific channel
+                    for source_channel_id in SOURCE_CHANNEL_IDS:
+                        if source_channel_id not in vcnv_messages:
+                            channel_name = ' '.join(word.capitalize() for word in bot.get_channel(source_channel_id).name.split('-'))
+                            await bot.get_channel(DISPLAY_CHANNEL_ID).send(f"{channel_name}:")
+                        else:
+                            message = vcnv_messages[source_channel_id]
+                            channel_name = ' '.join(word.capitalize() for word in message['channel_name'].split('-'))
+                            if message['content'].upper() == "/CNV":
+                                await bot.get_channel(DISPLAY_CHANNEL_ID).send(f"{channel_name}:")
+                            else:
+                                await bot.get_channel(DISPLAY_CHANNEL_ID).send(
+                                    f"{channel_name}: {message['content'].upper()}"
+                                )
+                    
+                    vcnv_messages.clear()
+                
+            except (IndexError, ValueError):
+                pass  # Ignore if there's no delay specified or an invalid delay value
+        
         # Tang toc
-        if round in ["tt1", "tt2"]:
+        elif round in ["tt1", "tt2"]:
             delay_seconds = 20 if round == "tt1" else 40
             try:
                 # Extract the delay value from the message content
-                await bot.get_channel(DISPLAY_CHANNEL_ID).send(START_STR)
                 for source_channel_id in SOURCE_CHANNEL_IDS:
                     await bot.get_channel(source_channel_id).send(START_STR)
 
                 await asyncio.sleep(delay_seconds)
 
-                await bot.get_channel(DISPLAY_CHANNEL_ID).send(TIME_UP_STR)
+                await bot.get_channel(DISPLAY_CHANNEL_ID).send("---------------ĐÁP ÁN CỦA CÁC THÍ SINH---------------")
                 for source_channel_id in SOURCE_CHANNEL_IDS:
                     await bot.get_channel(source_channel_id).send(TIME_UP_STR)
 
@@ -134,44 +166,8 @@ async def on_message(message):
                     
             except (IndexError, ValueError):
                 pass  # Ignore if there's no delay specified or an invalid delay value
-
-
-        # Vuot chuong ngai vat
-        elif round == "vcnv":
-            delay_seconds = 15
-            try:
-                # Extract the delay value from the message content
-                await bot.get_channel(DISPLAY_CHANNEL_ID).send(START_STR)
-                for source_channel_id in SOURCE_CHANNEL_IDS:
-                    await bot.get_channel(source_channel_id).send(START_STR)
-
-                await asyncio.sleep(delay_seconds)  # Wait for the specified delay
-
-                await bot.get_channel(DISPLAY_CHANNEL_ID).send(TIME_UP_STR)
-                for source_channel_id in SOURCE_CHANNEL_IDS:
-                    await bot.get_channel(source_channel_id).send(TIME_UP_STR)
-
-                if not DISPLAY_PAUSED:
-                # Check if there's no message in a specific channel
-                    for source_channel_id in SOURCE_CHANNEL_IDS:
-                        if source_channel_id not in vcnv_messages:
-                            channel_name = ' '.join(word.capitalize() for word in bot.get_channel(source_channel_id).name.split('-'))
-                            await bot.get_channel(DISPLAY_CHANNEL_ID).send(f"{channel_name}:")
-                        else:
-                            message = vcnv_messages[source_channel_id]
-                            channel_name = ' '.join(word.capitalize() for word in message['channel_name'].split('-'))
-                            if message['content'].upper() == "/CNV":
-                                await bot.get_channel(DISPLAY_CHANNEL_ID).send(f"{channel_name}:")
-                            else:
-                                await bot.get_channel(DISPLAY_CHANNEL_ID).send(
-                                    f"{channel_name}: {message['content'].upper()}"
-                                )
-                    
-                    vcnv_messages.clear()
-                
-            except (IndexError, ValueError):
-                pass  # Ignore if there's no delay specified or an invalid delay value
         
+        # Hoi suc
         elif round == "hs":
             delay_seconds = 60
             try:
@@ -207,6 +203,7 @@ async def on_message(message):
                 pass  # Ignore if there's no delay specified or an invalid delay value
         
         
+        # Ve dich + CHP
         elif round in ["vd", "chp"]:
             delay_seconds = 5 if round == "vd" else 15
             try:
@@ -215,8 +212,7 @@ async def on_message(message):
 
                 # Extract the delay value from the message content
                 await asyncio.sleep(delay_seconds)  # Wait for the specified delay
-
-                await bot.get_channel(DISPLAY_CHANNEL_ID).send(TIME_UP_STR)
+                
                 for source_channel_id in SOURCE_CHANNEL_IDS:
                     await bot.get_channel(source_channel_id).send(TIME_UP_STR)
 
@@ -233,9 +229,11 @@ async def on_message(message):
                 await bot.get_channel(source_channel_id).send(' '.join(message.content.split()[1:]))
         except (IndexError, ValueError):
             await bot.get_channel(DISPLAY_CHANNEL_ID).send("Bạn bị thiếu câu thông báo kìa!")
+
     
     elif message.channel.id == TARGET_CHANNEL_ID and message.content.startswith('/cont'):
         DISPLAY_PAUSED = False
+        await bot.get_channel(DISPLAY_CHANNEL_ID).send("---------------ĐÁP ÁN CỦA CÁC THÍ SINH---------------")
         for source_channel_id in SOURCE_CHANNEL_IDS:
             if source_channel_id not in vcnv_messages:
                 channel_name = ' '.join(word.capitalize() for word in bot.get_channel(source_channel_id).name.split('-'))
@@ -262,7 +260,26 @@ async def on_message(message):
                 await message.channel.send(f"Đã xóa {num_messages_to_clear - 1} tin nhắn ở cả 4 kênh!")
             except (IndexError, ValueError):
                 await bot.get_channel(DISPLAY_CHANNEL_ID).send("Bạn bị thiếu số lượng tin nhắn cần xóa kìa!")
-        
+    
+    elif message.channel.id == TARGET_CHANNEL_ID and message.content.startswith('/rename'):
+        # Check if the user has the required role to use the /rename command
+        if CLEAR_COMMAND_ROLE_ID in [role.id for role in message.author.roles]:
+            try:
+                # Extract new names for the channels from the command
+                new_names = message.content.split()[1:5]
+                
+                # Rename the channels
+                for channel_id in SOURCE_CHANNEL_IDS:
+                    channel = bot.get_channel(channel_id)
+                    if channel:
+                        await channel.edit(name=new_names.pop(0))  
+                    else:
+                        await message.channel.send(f"Kênh không tìm thấy.")
+                await message.channel.send(f"Đã đổi tên.")
+            except IndexError:
+                await message.channel.send("Lệnh bị gõ sai.")
+        else:
+            await message.channel.send("Bạn không có quyền sử dụng lệnh /rename.")
 
 
 # Replace BOT_TOKEN, SOURCE_CHANNEL_IDS, TARGET_CHANNEL_ID, and MY_TOKEN with your actual values
